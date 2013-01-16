@@ -1,4 +1,5 @@
 CFLAGS = -c
+INST = /usr/local
 LIBS = stack.c buffer.c crustache.c
 OBJS = ${LIBS:C/\.c/.o/g}
 
@@ -13,3 +14,11 @@ objs:
 
 clean:
 	rm -f $(OBJS) libcrustache.a
+
+install: all
+	cp libcrustache.a $(INST)/lib
+	cp crustache.h $(INST)/include
+
+deinstall:
+	rm $(INST)/lib/libcrustache.a
+	rm $(INST)/include/crustache.h
