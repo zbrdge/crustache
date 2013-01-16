@@ -1,0 +1,15 @@
+CFLAGS = -c
+LIBS = stack.c buffer.c crustache.c
+OBJS = ${LIBS:C/\.c/.o/g}
+
+all: libcrustache.a
+
+libcrustache.a:	objs
+	rm -f $(@F)
+	ar cq $(@F) $(OBJS)
+
+objs:
+	$(CC) $(CFLAGS) $(LIBS)
+
+clean:
+	rm -f $(OBJS) libcrustache.a

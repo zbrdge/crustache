@@ -1,3 +1,9 @@
+Just the original C bits, minus the ruby example for now, for zabb.co
+
+Will probably modify it to reflect some comments [here](http://news.ycombinator.com/item?id=2938393).
+
+---- Original Readme ----
+
 Crustache, an embeddable templating engine
 ==========================================
 
