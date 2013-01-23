@@ -1020,7 +1020,7 @@ crustache_new(
 
 	memcpy(&crt->api, api, sizeof(crustache_api));
 
-	crt->raw_content.ptr = malloc(raw_length);
+	crt->raw_content.ptr = calloc(raw_length, 1);
 	crt->raw_content.size = raw_length;
 
 	if (crt->raw_content.ptr == NULL) {
