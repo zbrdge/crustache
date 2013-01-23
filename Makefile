@@ -1,13 +1,13 @@
-CFLAGS = -c
+CFLAGS = -c -ggdb
 INST = /usr/local
-LIBS = stack.c buffer.c crustache.c
-OBJS = ${LIBS:C/\.c/.o/g}
+LIBS = stack.c buffer.c crustache.c houdini_html.c
+OBJS = $(LIBS:%.c=%.o)
 
 all: libcrustache.a
 
 libcrustache.a:	objs
-	rm -f $(@F)
-	ar cq $(@F) $(OBJS)
+	rm -f $@
+	ar cq $@ $(OBJS)
 
 objs:
 	$(CC) $(CFLAGS) $(LIBS)

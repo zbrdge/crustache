@@ -480,6 +480,7 @@ parse_internal(
 	int error = 0;
 
 	struct stack node_stack;
+  struct node_static *stnode_b = NULL; // second half of a static node
 
 	stack_init(&node_stack, DEFAULT_STACK_SIZE);
 	stack_push(&node_stack, root_node);
@@ -491,10 +492,6 @@ parse_internal(
 		error = find_mustache(&mst_pos, &mst_size, template, i, buffer, size);
 		if (error <= 0) /* failed, or no mustache found */
 			break;
-
-		if (mst_pos + mst_size) {
-
-		}
 
 		if (mst_pos > i) {
 			struct node_static *stnode;
@@ -509,8 +506,24 @@ parse_internal(
 			stnode->str.ptr = buffer + i;
 			stnode->str.size = mst_pos - i;
 
-			old_root = stack_pop(&node_stack);
-			old_root->next = (struct node *)stnode;
+      /*
+       * We need to make sure the second half of the template gets rendered,
+       * assuming the mustache tag doesn't sit at the end of the template: 
+       */
+      if (mst_pos + mst_size < template->raw_content.size) {
+        stnode_b = node_alloc(CRUSTACHE_NODE_STATIC, struct node_static);
+        if (stnode_b == NULL) {
+          error = CR_ENOMEM;
+          break;
+        }
+        stnode_b->str.ptr = buffer + mst_pos + mst_size;
+        stnode_b->str.size = template->raw_content.size - (mst_size + stnode->str.size);
+        stnode_b->base.type = CRUSTACHE_NODE_STATIC;
+        stnode_b->base.next = NULL;
+      }
+
+      old_root = stack_pop(&node_stack);
+      old_root->next = (struct node *)stnode;
 
 			stack_push(&node_stack, stnode);
 		}
@@ -672,6 +685,14 @@ parse_internal(
 		}
 	}
 
+  /* Render the second half of the template being parsed, if it exists: */
+  if(stnode_b != NULL) {
+    struct node *old_root;
+    old_root = stack_pop(&node_stack);
+    old_root->next = (struct node *)stnode_b;
+    stack_push(&node_stack, stnode_b);
+  }
+
 	stack_free(&node_stack);
 	return error;
 }
@@ -694,7 +715,7 @@ static void
 render_node_static(struct buf *ob, struct node_static *node)
 {
 	assert(node->base.type == CRUSTACHE_NODE_STATIC);
-	bufput(ob, node->str.ptr, node->str.size);
+  bufput(ob, node->str.ptr, node->str.size);
 }
 
 static int
@@ -705,7 +726,7 @@ render_node_partial(
 	struct stack *context,
 	int depth)
 {
-	int error;
+	int error = 0;
 	crustache_template *partial = NULL;
 
 	error = template->api.partial(
@@ -716,7 +737,17 @@ render_node_partial(
 	if (error < 0 || partial == NULL || partial->error_pos != 0) {
 		error = CR_ERENDER_BAD_PARTIAL;
 	} else {
-		error = render_node(ob, partial, &partial->root, context, depth);
+
+    // Need some different logic here
+    if (partial->root.type == CRUSTACHE_NODE_MULTIROOT && 
+        partial->root.next == NULL) {
+      // No more partials found, so we need to do something different.
+      // We need to actually render the contents of this partial:
+      bufput(ob, partial->raw_content.ptr, partial->raw_content.size);
+    } else {
+      error = render_node(ob, partial, &partial->root, context, depth);
+    }
+
 	}
 
 	if (error < 0)
@@ -932,7 +963,7 @@ render_node(
 			break;
 
 		case CRUSTACHE_NODE_STATIC:
-			render_node_static(ob, (struct node_static *)node);
+      render_node_static(ob, (struct node_static *)node);
 			break;
 
 		case CRUSTACHE_NODE_TAG:
